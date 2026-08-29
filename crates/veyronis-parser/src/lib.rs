@@ -3,10 +3,12 @@ pub mod dkom;
 pub mod dmp2pe;
 pub mod elf;
 pub mod entropy;
+pub mod injection_hunter;
 pub mod kernel_dumper;
 pub mod macho;
 pub mod pe;
 pub mod syscalls;
+pub mod unhook;
 pub mod unpacker;
 pub mod vmp;
 pub mod vmp_patcher;
@@ -16,12 +18,16 @@ pub use dkom::{DkomPageReader, VirtualAddressComponents};
 pub use dmp2pe::{DumpToPeConverter, DumpToPeOptions, ReconstructedPeInfo, ReconstructedSection};
 pub use elf::{ElfParser, ElfReport};
 pub use entropy::{calculate_entropy, is_likely_packed, ENTROPY_PACKED_THRESHOLD};
+pub use injection_hunter::{
+    DetectedInjection, InjectionType, ProcessInjectionHunter, ProcessInjectionReport,
+};
 pub use kernel_dumper::{
     DeepDumpSessionReport, DeepProcessDumper, KernelIntegrityStatus, ProcessModuleInfo,
 };
 pub use macho::{MachoParser, MachoReport};
 pub use pe::{PeDataDirectory, PeParser, PeReport, PeSection};
 pub use syscalls::{DetectedSyscallStub, SyscallHunter, SyscallInvocationType};
+pub use unhook::{DetectedInlineHook, UnhookEngine, UnhookReport};
 pub use unpacker::MemoryUnpacker;
 pub use vmp::{VmProtectAnalyzer, VmpAnalysisReport, VmpVirtualInstruction};
 pub use vmp_patcher::{PatchReport, VmProtectPatcher};

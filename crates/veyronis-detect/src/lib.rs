@@ -1,3 +1,4 @@
+pub mod beacon;
 pub mod builtin;
 pub mod dga;
 pub mod engine;
@@ -6,6 +7,7 @@ pub mod report;
 pub mod rule;
 pub mod syscall_hunter;
 
+pub use beacon::{BeaconAnalyzer, BeaconProfile};
 pub use dga::DgaDetector;
 pub use engine::DetectionEngine;
 pub use ja3::{check_known_malicious_ja3, Ja3Fingerprint};

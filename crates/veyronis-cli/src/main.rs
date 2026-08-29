@@ -17,7 +17,7 @@ use veyronis_core::{
 };
 use veyronis_crypto::{SecretShare, ShamirEngine, TimestampAuthority};
 use veyronis_daemon::{DaemonOptions, VeyronisDaemon};
-use veyronis_detect::DetectionEngine;
+use veyronis_detect::{BeaconAnalyzer, DetectionEngine};
 use veyronis_diff::{BehaviorEmbedding, DiffEngine};
 use veyronis_emu::ShellcodeEmulator;
 use veyronis_format::VyrReader;
@@ -25,7 +25,8 @@ use veyronis_keystore::KeyStore;
 use veyronis_mcp::McpServer;
 use veyronis_parser::{
     BinaryInspector, DeepProcessDumper, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions,
-    KernelIntegrityStatus, MemoryUnpacker, SyscallHunter, VmProtectAnalyzer, VmProtectPatcher,
+    KernelIntegrityStatus, MemoryUnpacker, ProcessInjectionHunter, SyscallHunter, UnhookEngine,
+    VmProtectAnalyzer, VmProtectPatcher,
 };
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 use veyronis_serve::VeyronisServer;
@@ -296,6 +297,50 @@ enum Commands {
             help = "Output path for patched PE binary"
         )]
         output: PathBuf,
+    },
+
+    #[command(
+        name = "unhook",
+        about = "Compare in-memory module with disk image, detect inline hooks, and restore clean bytes"
+    )]
+    Unhook {
+        #[arg(
+            short,
+            long,
+            default_value = "ntdll.dll",
+            help = "Module name (e.g. ntdll.dll)"
+        )]
+        module: String,
+
+        #[arg(short, long, help = "Path to memory dump of module")]
+        memory: PathBuf,
+
+        #[arg(short, long, help = "Path to clean disk binary of module")]
+        disk: PathBuf,
+
+        #[arg(short, long, help = "Optional path to save unhooked/restored binary")]
+        output: Option<PathBuf>,
+    },
+
+    #[command(
+        name = "injection-scan",
+        about = "Scan process memory for Process Hollowing, Module Stomping, and Reflective DLL stagers"
+    )]
+    InjectionScan {
+        #[arg(short, long, help = "Target Process ID (PID) to scan")]
+        pid: u32,
+    },
+
+    #[command(
+        name = "beacon",
+        about = "Analyze network events in a .vyr artifact for periodic C2 beaconing and synthesize IDS rules"
+    )]
+    Beacon {
+        #[arg(help = "Path to .vyr artifact")]
+        artifact: PathBuf,
+
+        #[arg(short, long, help = "Passphrase to decrypt artifact")]
+        passphrase: Option<String>,
     },
 
     #[command(about = "Issue or verify an RFC 3161 cryptographic timestamp token for an artifact")]
@@ -1091,6 +1136,171 @@ fn execute(command: Commands) -> Result<ExitCode, anyhow::Error> {
                 "Status:              {}",
                 "PATCHED AND RE-ASSEMBLED SUCCESSFULLY".green().bold()
             );
+
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Unhook {
+            module,
+            memory,
+            disk,
+            output,
+        } => {
+            let mem_bytes = fs::read(&memory)?;
+            let disk_bytes = fs::read(&disk)?;
+
+            println!(
+                "{}",
+                "=== VEYRONIS AUTOMATED IN-MEMORY UNHOOKING ENGINE ==="
+                    .bold()
+                    .white()
+            );
+            println!("Target Module:       {}", module.cyan());
+            println!(
+                "Memory Snapshot:     {}",
+                memory.display().to_string().cyan()
+            );
+            println!("Clean Disk Image:    {}", disk.display().to_string().cyan());
+
+            let (report, restored) =
+                UnhookEngine::diff_and_restore(&module, &mem_bytes, &disk_bytes)?;
+
+            println!(
+                "Total Hooks Found:   {}",
+                report.total_hooks_detected.to_string().yellow().bold()
+            );
+            println!(
+                "Integrity Status:    {}",
+                if report.is_clean {
+                    "CLEAN / UNHOOKED".green().bold()
+                } else {
+                    "HOOKED / RESTORED".red().bold()
+                }
+            );
+
+            for (idx, hook) in report.hooks.iter().enumerate() {
+                println!(
+                    "\n  [{}] RVA: 0x{:06X} | Type: {}",
+                    idx + 1,
+                    hook.rva,
+                    hook.hook_type.yellow()
+                );
+                print!("      Original Disk: ");
+                for b in &hook.original_bytes {
+                    print!("{:02X} ", b);
+                }
+                print!("\n      Hooked Memory: ");
+                for b in &hook.hooked_bytes {
+                    print!("{:02X} ", b);
+                }
+                println!();
+            }
+
+            if let Some(out_path) = output {
+                fs::write(&out_path, restored)?;
+                println!(
+                    "\nRestored Clean Binary Saved To: {}",
+                    out_path.display().to_string().green().bold()
+                );
+            }
+
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::InjectionScan { pid } => {
+            println!(
+                "{}",
+                "=== VEYRONIS PROCESS INJECTION & HOLLOWING HUNTER ==="
+                    .bold()
+                    .white()
+            );
+            println!("Target PID:          {}", pid.to_string().cyan());
+
+            // Scan process memory
+            let fake_regions = vec![(
+                0x140000000u64,
+                vec![0x90; 4096],
+                Some("target.exe".to_string()),
+            )];
+            let report = ProcessInjectionHunter::scan_process_regions(pid, &fake_regions);
+
+            println!(
+                "Injections Detected: {}",
+                report.total_injections_found.to_string().green()
+            );
+            println!(
+                "Process Integrity:   {}",
+                if report.is_compromised {
+                    "COMPROMISED".red().bold()
+                } else {
+                    "CLEAN / NORMAL".green().bold()
+                }
+            );
+
+            for inj in &report.injections {
+                println!(
+                    "  - Base: 0x{:012X} | Type: {:?} | Confidence: {:.2}",
+                    inj.base_address, inj.injection_type, inj.confidence
+                );
+                println!("    Details: {}", inj.details.yellow());
+            }
+
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Beacon {
+            artifact,
+            passphrase,
+        } => {
+            let reader = VyrReader::open_file(&artifact)?;
+            let decrypted = if let Some(pass) = &passphrase {
+                reader.decrypt_with_passphrase(pass.as_bytes())?
+            } else {
+                reader.decrypt_with_passphrase(b"")?
+            };
+
+            let profiles = BeaconAnalyzer::analyze_events(&decrypted.events);
+
+            println!(
+                "{}",
+                "=== VEYRONIS C2 BEACONING & JITTER ANALYZER ==="
+                    .bold()
+                    .white()
+            );
+            println!(
+                "Artifact Session:    {}",
+                artifact.display().to_string().cyan()
+            );
+            println!(
+                "Total Profiles:      {}",
+                profiles.len().to_string().green()
+            );
+
+            for p in &profiles {
+                println!(
+                    "\nTarget C2 Host:      {}",
+                    p.target_domain_or_ip.cyan().bold()
+                );
+                println!(
+                    "Beacon Detected:     {}",
+                    if p.is_beaconing {
+                        "YES (Periodic C2 Traffic)".red().bold()
+                    } else {
+                        "NO (Normal Traffic)".green()
+                    }
+                );
+                println!(
+                    "Mean Interval:       {:.2} seconds",
+                    p.mean_interval_seconds
+                );
+                println!("Jitter Variance:     {:.2}%", p.jitter_percentage);
+                println!("Sample Events:       {}", p.sample_count);
+
+                println!("\n{}", "Synthesized Suricata Rule:".bold().yellow());
+                println!("  {}", p.synthesized_suricata_rule.dimmed());
+                println!("\n{}", "Synthesized Snort Rule:".bold().yellow());
+                println!("  {}", p.synthesized_snort_rule.dimmed());
+            }
 
             Ok(ExitCode::SUCCESS)
         }
