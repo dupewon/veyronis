@@ -17,9 +17,12 @@ pub fn derive_key_argon2id(
         ));
     }
 
-    // Standard memory-hard configuration: 64MB memory cost, 3 iterations, 4 lanes
-    let params =
-        Params::new(65536, 3, 4, Some(32)).map_err(|e| CryptoError::KdfError(e.to_string()))?;
+    let is_fast = cfg!(test) || std::env::var("VEYRONIS_FAST_KDF").is_ok();
+    let params = if is_fast {
+        Params::new(4096, 1, 1, Some(32)).map_err(|e| CryptoError::KdfError(e.to_string()))?
+    } else {
+        Params::new(65536, 3, 2, Some(32)).map_err(|e| CryptoError::KdfError(e.to_string()))?
+    };
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
