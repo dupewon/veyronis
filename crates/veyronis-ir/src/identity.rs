@@ -56,7 +56,7 @@ impl ProcessIdentity {
             return "unknown";
         }
         let s = self.executable_path.as_str();
-        let last_sep = s.rfind(|c| c == '/' || c == '\\');
+        let last_sep = s.rfind(['/', '\\']);
         match last_sep {
             Some(idx) => {
                 let name = &s[idx + 1..];
