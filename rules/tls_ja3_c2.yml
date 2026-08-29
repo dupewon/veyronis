@@ -1,0 +1,13 @@
+id: "VYR-RULE-005"
+title: "Known Malicious JA3 C2 Fingerprint Match"
+description: "Detects outbound TLS negotiation matching known adversary C2 implant profiles (Cobalt Strike, Sliver, Metasploit)."
+author: "dupewon <whuq@cheatglobal>"
+severity: "CRITICAL"
+mitre:
+  tactic: "Command and Control"
+  technique_id: "T1071.001"
+  technique_name: "Application Layer Protocol: Web Protocols"
+criteria:
+  - event_type: "TlsObserved"
+    min_event_count: 1
+remediation: "Immediately terminate connection, revoke certificate trust if rogue, and quarantine host."

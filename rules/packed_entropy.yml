@@ -1,0 +1,13 @@
+id: "VYR-RULE-006"
+title: "Packed / Obfuscated High-Entropy Binary Execution"
+description: "Detects process spawn of executables exhibiting Shannon entropy exceeding 7.2 bits/byte indicative of packers or cryptors."
+author: "dupewon <whuq@cheatglobal>"
+severity: "HIGH"
+mitre:
+  tactic: "Defense Evasion"
+  technique_id: "T1027.002"
+  technique_name: "Obfuscated Files or Information: Software Packing"
+criteria:
+  - event_type: "ProcessStart"
+    min_event_count: 1
+remediation: "Extract and preserve binary file from disk for static disassembly and sandbox detonation."

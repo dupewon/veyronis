@@ -1,0 +1,118 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/veyronis-cli",
+    "crates/veyronis-core",
+    "crates/veyronis-ir",
+    "crates/veyronis-graph",
+    "crates/veyronis-format",
+    "crates/veyronis-crypto",
+    "crates/veyronis-policy",
+    "crates/veyronis-collector-api",
+    "crates/collector-windows",
+    "crates/collector-linux",
+    "crates/collector-macos",
+    "crates/collector-portable",
+    "crates/veyronis-keystore",
+    "crates/veyronis-query",
+    "crates/veyronis-diff",
+    "crates/veyronis-detect",
+    "crates/veyronis-ffi",
+    "crates/veyronis-parser",
+    "crates/veyronis-serve",
+    "crates/veyronis-daemon",
+    "crates/veyronis-shim",
+    "crates/veyronis-mcp",
+    "crates/veyronis-ai",
+    "crates/veyronis-emu",
+    "crates/veyronis-cluster",
+    "examples/fixtures/file-access-test",
+    "examples/fixtures/dns-test",
+    "examples/fixtures/tcp-test",
+    "examples/fixtures/process-spawn-test",
+    "examples/fixtures/crypto-test",
+    "examples/fixtures/modified-fixture-test",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["dupewon <whuq@cheatglobal>"]
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/dupewon/veyronis"
+homepage = "https://github.com/dupewon/veyronis"
+
+[workspace.dependencies]
+# Serialization & Encoding
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+byteorder = "1.5"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+flate2 = "1.0"
+zstd = "0.13"
+
+# Cryptography & Security
+chacha20poly1305 = { version = "0.10", features = ["alloc"] }
+aes-gcm = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core", "serde"] }
+x25519-dalek = { version = "2.0", features = ["static_secrets", "serde"] }
+argon2 = { version = "0.5", features = ["std"] }
+blake3 = { version = "1.5", features = ["serde"] }
+rand = "0.8"
+zeroize = { version = "1.8", features = ["derive", "zeroize_derive"] }
+hkdf = "0.12"
+sha2 = "0.10"
+
+# CLI, TUI & UX
+clap = { version = "4.5", features = ["derive", "env"] }
+tabled = { version = "0.15", features = ["ansi"] }
+colored = "2.1"
+indicatif = "0.17"
+crossterm = "0.28"
+ratatui = "0.29"
+
+# Error Handling & Utilities
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+directories = "5.0"
+regex = "1.10"
+
+# Internal Crates
+veyronis-ir = { path = "crates/veyronis-ir" }
+veyronis-graph = { path = "crates/veyronis-graph" }
+veyronis-crypto = { path = "crates/veyronis-crypto" }
+veyronis-format = { path = "crates/veyronis-format" }
+veyronis-policy = { path = "crates/veyronis-policy" }
+veyronis-collector-api = { path = "crates/veyronis-collector-api" }
+collector-windows = { path = "crates/collector-windows" }
+collector-linux = { path = "crates/collector-linux" }
+collector-macos = { path = "crates/collector-macos" }
+collector-portable = { path = "crates/collector-portable" }
+veyronis-keystore = { path = "crates/veyronis-keystore" }
+veyronis-query = { path = "crates/veyronis-query" }
+veyronis-diff = { path = "crates/veyronis-diff" }
+veyronis-detect = { path = "crates/veyronis-detect" }
+veyronis-ffi = { path = "crates/veyronis-ffi" }
+veyronis-core = { path = "crates/veyronis-core" }
+veyronis-parser = { path = "crates/veyronis-parser" }
+veyronis-serve = { path = "crates/veyronis-serve" }
+veyronis-daemon = { path = "crates/veyronis-daemon" }
+veyronis-shim = { path = "crates/veyronis-shim" }
+veyronis-mcp = { path = "crates/veyronis-mcp" }
+veyronis-ai = { path = "crates/veyronis-ai" }
+veyronis-emu = { path = "crates/veyronis-emu" }
+veyronis-cluster = { path = "crates/veyronis-cluster" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,17 @@
+[package]
+name = "veyronis-collector-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Universal collector trait, capability model, and event buffer for Veyronis"
+
+[dependencies]
+veyronis-ir = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+crossbeam-channel = { workspace = true }
+parking_lot = { workspace = true }
+chrono = { workspace = true }

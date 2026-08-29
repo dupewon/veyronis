@@ -1,0 +1,24 @@
+# Build artifacts
+/target
+Cargo.lock.tmp
+**/*.rs.bk
+
+# Binary containers & runtime logs
+*.vyr
+*.tsa.json
+*.log
+*.bin
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Python & Node
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
+*.egg-info/

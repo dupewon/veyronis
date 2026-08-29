@@ -1,0 +1,20 @@
+[package]
+name = "veyronis-mcp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Universal Model Context Protocol (MCP) Server for Veyronis"
+
+[dependencies]
+veyronis-core = { workspace = true }
+veyronis-format = { workspace = true }
+veyronis-query = { workspace = true }
+veyronis-detect = { workspace = true }
+veyronis-parser = { workspace = true }
+veyronis-diff = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+tokio = { version = "1.38", features = ["full"] }

@@ -1,0 +1,16 @@
+[package]
+name = "collector-macos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "macOS native runtime behavior and libproc telemetry collector for Veyronis"
+
+[dependencies]
+veyronis-collector-api = { workspace = true }
+veyronis-ir = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+parking_lot = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,17 @@
+[package]
+name = "veyronis-parser"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Static binary analysis, PE/ELF/Mach-O parsers, and Shannon entropy engine for Veyronis"
+
+[dependencies]
+byteorder = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tabled = { workspace = true }
+colored = { workspace = true }

@@ -1,0 +1,40 @@
+[package]
+name = "veyronis-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Command-line interface for Veyronis Universal Security Behavior Engine"
+
+[[bin]]
+name = "veyronis"
+path = "src/main.rs"
+
+[dependencies]
+veyronis-core = { workspace = true }
+veyronis-format = { workspace = true }
+veyronis-crypto = { workspace = true }
+veyronis-keystore = { workspace = true }
+veyronis-query = { workspace = true }
+veyronis-diff = { workspace = true }
+veyronis-detect = { workspace = true }
+veyronis-graph = { workspace = true }
+veyronis-ir = { workspace = true }
+veyronis-parser = { workspace = true }
+veyronis-serve = { workspace = true }
+veyronis-daemon = { workspace = true }
+veyronis-shim = { workspace = true }
+veyronis-mcp = { workspace = true }
+veyronis-ai = { workspace = true }
+veyronis-emu = { workspace = true }
+veyronis-cluster = { workspace = true }
+clap = { workspace = true }
+tabled = { workspace = true }
+colored = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde_json = { workspace = true }
+crossterm = { workspace = true }
+ratatui = { workspace = true }

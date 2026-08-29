@@ -1,0 +1,17 @@
+[package]
+name = "veyronis-query"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Veyronis Query Language (VQL) parser and execution engine"
+
+[dependencies]
+veyronis-ir = { workspace = true }
+veyronis-graph = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tabled = { workspace = true }
+colored = { workspace = true }

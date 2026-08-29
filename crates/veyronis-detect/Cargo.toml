@@ -1,0 +1,21 @@
+[package]
+name = "veyronis-detect"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+veyronis-ir.workspace = true
+veyronis-graph.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+regex.workspace = true
+colored.workspace = true
+tabled.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+blake3.workspace = true

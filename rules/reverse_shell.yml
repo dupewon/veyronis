@@ -1,0 +1,14 @@
+id: "VYR-RULE-002"
+title: "Reverse Shell C2 Egress"
+description: "Detects command or scripting interpreter connecting to external WAN destinations."
+author: "dupewon <whuq@cheatglobal>"
+severity: "HIGH"
+mitre:
+  tactic: "Command and Control"
+  technique_id: "T1059"
+  technique_name: "Command and Scripting Interpreter"
+criteria:
+  - event_type: "NetworkConnect"
+    is_external_network: true
+    min_event_count: 1
+remediation: "Block external egress IP at perimeter firewall, inspect process memory, and audit network traffic."

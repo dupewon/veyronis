@@ -1,0 +1,13 @@
+id: "VYR-RULE-004"
+title: "DGA Domain Algorithmic C2 Beaconing"
+description: "Detects DNS lookups targeting high-entropy or algorithmically generated domains (DGA)."
+author: "dupewon <whuq@cheatglobal>"
+severity: "HIGH"
+mitre:
+  tactic: "Command and Control"
+  technique_id: "T1568.002"
+  technique_name: "Dynamic Resolution: Domain Generation Algorithms"
+criteria:
+  - event_type: "DnsQuery"
+    min_event_count: 1
+remediation: "Sinkhole DGA domain query at internal resolver, inspect originating process memory, and block parent PID."

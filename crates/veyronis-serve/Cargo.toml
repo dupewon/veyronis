@@ -1,0 +1,22 @@
+[package]
+name = "veyronis-serve"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Embedded local web visualizer server and REST API for Veyronis"
+
+[dependencies]
+veyronis-core = { workspace = true }
+veyronis-format = { workspace = true }
+veyronis-detect = { workspace = true }
+veyronis-graph = { workspace = true }
+veyronis-keystore = { workspace = true }
+veyronis-query = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+tracing = { workspace = true }

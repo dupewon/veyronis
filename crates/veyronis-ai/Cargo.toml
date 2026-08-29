@@ -1,0 +1,17 @@
+[package]
+name = "veyronis-ai"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Autonomous Local AI Incident Explainer & Rule Synthesizer for Veyronis"
+
+[dependencies]
+veyronis-format = { workspace = true }
+veyronis-detect = { workspace = true }
+veyronis-ir = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+uuid = { workspace = true }

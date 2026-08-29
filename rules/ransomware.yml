@@ -1,0 +1,15 @@
+id: "VYR-RULE-001"
+title: "Behavioral Ransomware - High Volume File Encryption"
+description: "Detects bulk file write operations paired with symmetric cryptographic ciphers."
+author: "dupewon <whuq@cheatglobal>"
+severity: "CRITICAL"
+mitre:
+  tactic: "Impact"
+  technique_id: "T1486"
+  technique_name: "Data Encrypted for Impact"
+criteria:
+  - event_type: "FileWrite"
+    min_event_count: 1
+  - event_type: "CryptoOperation"
+    min_event_count: 1
+remediation: "Immediately isolate host network connection, terminate malicious process PID, and restore from immutable backups."

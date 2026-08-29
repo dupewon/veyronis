@@ -1,0 +1,16 @@
+[package]
+name = "collector-linux"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Linux native runtime behavior, procfs, netlink, and eBPF telemetry collector for Veyronis"
+
+[dependencies]
+veyronis-collector-api = { workspace = true }
+veyronis-ir = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+parking_lot = { workspace = true }
+uuid = { workspace = true }

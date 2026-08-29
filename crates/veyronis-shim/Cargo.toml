@@ -1,0 +1,14 @@
+[package]
+name = "veyronis-shim"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Anti-Anti-Debug & Time-Dilation Evasion Shim for Veyronis"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+colored.workspace = true
+anyhow.workspace = true

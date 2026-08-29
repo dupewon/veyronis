@@ -1,0 +1,16 @@
+[package]
+name = "veyronis-cluster"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Multi-Node Fleet Clustering & Telemetry Ingestion Hub for Veyronis"
+
+[dependencies]
+veyronis-format = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,23 @@
+[package]
+name = "veyronis-format"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Binary container parser, serializer, and validator for .vyr artifacts"
+
+[dependencies]
+veyronis-ir = { workspace = true }
+veyronis-graph = { workspace = true }
+veyronis-crypto = { workspace = true }
+byteorder = { workspace = true }
+flate2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
