@@ -9,6 +9,7 @@ description = "Embedded local web visualizer server and REST API for Veyronis"
 
 [dependencies]
 veyronis-core = { workspace = true }
+veyronis-ir = { workspace = true }
 veyronis-format = { workspace = true }
 veyronis-detect = { workspace = true }
 veyronis-graph = { workspace = true }

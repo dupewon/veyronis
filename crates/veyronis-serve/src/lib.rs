@@ -225,7 +225,7 @@ fn render_dashboard_spa(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VEYRONIS Security Dashboard</title>
+    <title>◈ VEYRONIS ◈ Interactive Security & Forensic Dashboard</title>
     <style>
         :root {{
             --bg: #090d13;
@@ -402,6 +402,53 @@ fn render_dashboard_spa(
         .btn:hover {{
             background: var(--accent);
         }}
+        .btn-preset {{
+            background: #1c2430;
+            color: #58a6ff;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }}
+        .btn-preset:hover {{
+            background: #238636;
+            color: white;
+            border-color: #2ea043;
+        }}
+        .timeline-item {{
+            position: relative;
+            padding-left: 28px;
+            margin-bottom: 20px;
+            border-left: 2px solid var(--border);
+        }}
+        .timeline-item::before {{
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+        }}
+        .timeline-item.threat::before {{
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+        }}
+        .entropy-bar-bg {{
+            background: #21262d;
+            border-radius: 4px;
+            height: 8px;
+            width: 100%;
+            overflow: hidden;
+            margin-top: 6px;
+        }}
+        .entropy-bar-fill {{
+            height: 100%;
+            border-radius: 4px;
+        }}
     </style>
 </head>
 <body>
@@ -412,6 +459,9 @@ fn render_dashboard_spa(
         </div>
         <div class="nav-item" onclick="switchTab('tree')">
             <span>🌳</span> Process Lineage Tree
+        </div>
+        <div class="nav-item" onclick="switchTab('timeline')">
+            <span>⏱️</span> Execution Timeline
         </div>
         <div class="nav-item" onclick="switchTab('events')">
             <span>📋</span> Normalized VIR Events
@@ -480,7 +530,17 @@ fn render_dashboard_spa(
             </div>
         </div>
 
-        <!-- TAB 3: VIR EVENTS -->
+        <!-- TAB 3: TIMELINE -->
+        <div id="tab-timeline" class="tab-pane">
+            <div class="card">
+                <div class="card-title" style="margin-bottom: 16px;">Chronological Behavioral Execution Sequence</div>
+                <div style="margin-top: 16px;">
+                    {timeline_html}
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: VIR EVENTS -->
         <div id="tab-events" class="tab-pane">
             <div class="card">
                 <div class="card-title" style="margin-bottom: 16px;">Normalized VIR Event Stream ({event_count})</div>
@@ -503,7 +563,7 @@ fn render_dashboard_spa(
             </div>
         </div>
 
-        <!-- TAB 4: MITRE ATT&CK MATRIX -->
+        <!-- TAB 5: MITRE ATT&CK MATRIX -->
         <div id="tab-mitre" class="tab-pane">
             <div class="card" style="margin-bottom: 20px;">
                 <div class="card-title" style="margin-bottom: 8px;">MITRE ATT&CK Enterprise Matrix Coverage</div>
@@ -533,12 +593,20 @@ fn render_dashboard_spa(
             </div>
         </div>
 
-        <!-- TAB 5: VQL CONSOLE -->
+        <!-- TAB 6: VQL CONSOLE -->
         <div id="tab-vql" class="tab-pane">
             <div class="card" style="margin-bottom: 20px;">
                 <div class="card-title" style="margin-bottom: 12px;">Veyronis Query Language (VQL) Live Console</div>
+                
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+                    <button class="btn-preset" onclick="setVql('FIND event WHERE type = \'CryptoOperation\'')">🔐 Crypto Operations</button>
+                    <button class="btn-preset" onclick="setVql('FIND event WHERE type = \'NetworkConnect\'')">🌐 Network Connections</button>
+                    <button class="btn-preset" onclick="setVql('FIND event WHERE type = \'FileOpen\' OR type = \'FileWrite\'')">📁 File System Mutations</button>
+                    <button class="btn-preset" onclick="setVql('FIND event WHERE confidence >= 0.90')">🎯 High Confidence Events</button>
+                </div>
+
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <input type="text" class="search-box" id="vqlInput" style="margin-bottom: 0;" placeholder="FIND event WHERE type = 'CryptoOperation' OR process_name = 'crypto-test.exe'" value="FIND event WHERE type = 'CryptoOperation'">
+                    <input type="text" class="search-box" id="vqlInput" style="margin-bottom: 0;" placeholder="FIND event WHERE type = 'CryptoOperation'" value="FIND event WHERE type = 'CryptoOperation'">
                     <button class="btn" onclick="executeVql()">Run Query</button>
                 </div>
                 <pre class="terminal-view" id="vqlOutput">// VQL Query Results will appear here...</pre>
@@ -551,11 +619,9 @@ fn render_dashboard_spa(
         const alertsData = {alerts_json};
 
         function switchTab(tabId) {{
-            // Deactivate all nav items and panes
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
 
-            // Activate target
             if (tabId === 'overview') {{
                 document.querySelectorAll('.nav-item')[0].classList.add('active');
                 document.getElementById('tab-overview').classList.add('active');
@@ -564,19 +630,28 @@ fn render_dashboard_spa(
                 document.querySelectorAll('.nav-item')[1].classList.add('active');
                 document.getElementById('tab-tree').classList.add('active');
                 document.getElementById('viewTitle').innerText = 'Process Hierarchy & Lineage Tree';
-            }} else if (tabId === 'events') {{
+            }} else if (tabId === 'timeline') {{
                 document.querySelectorAll('.nav-item')[2].classList.add('active');
+                document.getElementById('tab-timeline').classList.add('active');
+                document.getElementById('viewTitle').innerText = 'Chronological Behavioral Execution Sequence';
+            }} else if (tabId === 'events') {{
+                document.querySelectorAll('.nav-item')[3].classList.add('active');
                 document.getElementById('tab-events').classList.add('active');
                 document.getElementById('viewTitle').innerText = 'Normalized VIR Telemetry Event Stream';
             }} else if (tabId === 'mitre') {{
-                document.querySelectorAll('.nav-item')[3].classList.add('active');
+                document.querySelectorAll('.nav-item')[4].classList.add('active');
                 document.getElementById('tab-mitre').classList.add('active');
                 document.getElementById('viewTitle').innerText = 'MITRE ATT&CK Matrix & TTP Mappings';
             }} else if (tabId === 'vql') {{
-                document.querySelectorAll('.nav-item')[4].classList.add('active');
+                document.querySelectorAll('.nav-item')[5].classList.add('active');
                 document.getElementById('tab-vql').classList.add('active');
                 document.getElementById('viewTitle').innerText = 'VQL Interactive Threat Query Console';
             }}
+        }}
+
+        function setVql(query) {{
+            document.getElementById('vqlInput').value = query;
+            executeVql();
         }}
 
         function filterEvents() {{
@@ -625,6 +700,24 @@ fn render_dashboard_spa(
                 format!(
                     "<div style=\"background: #181d26; border-left: 4px solid var(--red); padding: 14px 18px; border-radius: 6px; margin-bottom: 12px;\"><div style=\"font-weight: 700; color: var(--text-bright); font-size: 15px;\">{} [{}] ({})</div><div style=\"color: var(--text-dim); font-size: 12px; margin-top: 6px;\"><strong>Remediation:</strong> {}</div></div>",
                     a.title, a.rule_id, a.severity, a.remediation
+                )
+            }).collect::<Vec<_>>().join("\n")
+        },
+        timeline_html = if artifact.events.is_empty() {
+            "<div style=\"color: var(--text-dim);\">No timeline events recorded.</div>".to_string()
+        } else {
+            artifact.events.iter().take(50).map(|e| {
+                let is_threat = matches!(e.event_type, veyronis_ir::event::EventType::CryptoOperation);
+                let class_name = if is_threat { "timeline-item threat" } else { "timeline-item" };
+                let color_badge = if is_threat { "var(--red)" } else { "var(--accent)" };
+                format!(
+                    "<div class=\"{}\"><div style=\"font-size: 12px; color: var(--text-dim);\">{}</div><div style=\"font-weight: 700; color: {}; font-size: 14px; margin-top: 2px;\">{} - <span style=\"color: var(--text-bright);\">{}</span> (PID: {})</div></div>",
+                    class_name,
+                    e.timestamp_wall,
+                    color_badge,
+                    e.event_type,
+                    e.process_identity.canonical_name(),
+                    e.process_identity.pid
                 )
             }).collect::<Vec<_>>().join("\n")
         },

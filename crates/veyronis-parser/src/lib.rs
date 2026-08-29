@@ -32,7 +32,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub enum BinaryType {
-    Pe(PeReport),
+    Pe(Box<PeReport>),
     Elf(ElfReport),
     Macho(MachoReport),
     Unknown { entropy: f64, size_bytes: usize },
@@ -153,7 +153,7 @@ impl BinaryInspector {
 
         let (binary_type, is_packed) = if let Ok(pe) = PeParser::parse(&bytes) {
             let packed = pe.is_packed || is_likely_packed(overall_entropy);
-            (BinaryType::Pe(pe), packed)
+            (BinaryType::Pe(Box::new(pe)), packed)
         } else if let Ok(elf) = ElfParser::parse(&bytes) {
             let packed = elf.is_packed || is_likely_packed(overall_entropy);
             (BinaryType::Elf(elf), packed)

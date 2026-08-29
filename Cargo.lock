@@ -2198,6 +2198,7 @@ dependencies = [
  "veyronis-detect",
  "veyronis-format",
  "veyronis-graph",
+ "veyronis-ir",
  "veyronis-keystore",
  "veyronis-query",
 ]

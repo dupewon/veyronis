@@ -1,0 +1,96 @@
+[CENTER]
+[CODE]
+██╗   ██╗███████╗██╗   ██╗██████╗  ██████╗ ███╗   ██╗██╗███████╗
+██║   ██║██╔════╝╚██╗ ██╔╝██╔══██╗██╔═══██╗████╗  ██║██║██╔════╝
+██║   ██║█████╗   ╚████╔╝ ██████╔╝██║   ██║██╔██╗ ██║██║███████╗
+╚██╗ ██╔╝██╔══╝    ╚██╔╝  ██╔══██╗██║   ██║██║╚██╗██║██║╚════██║
+ ╚████╔╝ ███████╗   ██║   ██║  ██║╚██████╔╝██║ ╚████║██║███████║
+  ╚═══╝  ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝╚══════╝
+[/CODE]
+[B][SIZE=6][COLOR=rgb(88, 166, 255)]VEYRONIS v0.1.0 — Universal Verifiable Security & Reverse Engineering Engine[/COLOR][/SIZE][/B]
+[SIZE=4][COLOR=rgb(139, 148, 158)]PE/ELF/Mach-O Inspector • VMProtect Devirtualizer • DMP to PE Reconstructor • Kernel Multi-Module Dumper • Deobfuscator • IDA & Ghidra Overlays • AI Threat Intelligence[/COLOR][/SIZE]
+[/CENTER]
+
+[HR][/HR]
+
+[B][SIZE=5][COLOR=rgb(63, 185, 80)]⚡ Veyronis Nedir?[/COLOR][/SIZE][/B]
+[B]Veyronis[/B], modern korumaları (VMProtect, Control Flow Flattening, Opaque Predicates), bellek manipülasyonlarını (DMP convert, Heaven's Gate, Indirect Syscalls) ve çalışma zamanı tehditlerini analiz etmek için sıfırdan [B]Rust[/B] ile geliştirilmiş, 25 modülden oluşan uçtan uca doğrulanabilir bir güvenlik ve tersine mühendislik motorudur.
+
+[HR][/HR]
+
+[B][SIZE=5][COLOR=rgb(88, 166, 255)]🔥 Öne Çıkan Süper Özellikler[/COLOR][/SIZE][/B]
+
+[TABLE]
+[TR]
+[TH][COLOR=rgb(88, 166, 255)]Modül / Yetenek[/COLOR][/TH]
+[TH][COLOR=rgb(88, 166, 255)]Açıklama[/COLOR][/TH]
+[/TR]
+[TR]
+[TD][B]🛡️ VMProtect Unpacker & Devirtualizer[/B][/TD]
+[TD]VMProtect 2.x/3.x bytecode'larını ayrıştırır, VIP/VSP izlerini takip eder, OEP geçişini tespit eder ve sanal blokları yerel makine koduna dönüştürüp temiz PE olarak çıkarır.[/TD]
+[/TR]
+[TR]
+[TD][B]💾 DMP to PE Reconstructor[/B][/TD]
+[TD]Bellekten alınan `.dmp` ve sayfa dökümlerini otomatik olarak diskteki geçerli ve çalıştırılabilir `.exe` formatına dönüştürür, bozuk IAT tablolarını onarır.[/TD]
+[/TR]
+[TR]
+[TD][B]🧹 Control Flow Deobfuscator[/B][/TD]
+[TD]CFF (Control Flow Flattening) dispatcher döngülerini çözer, opaque predicate atlamalarını NOP'lar, ölü talimatları temizler ve yığına (stack) gizlenmiş XOR metinleri kurtarır.[/TD]
+[/TR]
+[TR]
+[TD][B]🌌 Heaven's Gate & Syscall Hunter[/B][/TD]
+[TD]32-bit'ten 64-bit'e geçen (`0x33`) Heaven's Gate atlamalarını ve SysWhispers/TartarusGate gibi direct/indirect syscall stubs'larını yakalayıp SSN numaralarını gerçek NT API isimlerine çevirir.[/TD]
+[/TR]
+[TR]
+[TD][B]🧬 Deep Kernel Multi-Module Dumper[/B][/TD]
+[TD]Windows Test Signing modunu kontrol eder, hedef PID'nin belleğindeki tüm DLL ve modülleri tek tıkla unmap ederek çeker ve otomatik [B]IDA Pro Python scripti[/B] üretir.[/TD]
+[/TR]
+[TR]
+[TD][B]🔌 IDA Pro & Ghidra Entegrasyonları[/B][/TD]
+[TD]Canlı runtime telemetrisini, execution heatmap'lerini ve çözümlenen gizli metinleri decompiler üzerine tek tıkla (`Ctrl+Shift+V`) yorum olarak yazar.[/TD]
+[/TR]
+[TR]
+[TD][B]🌐 Web Dashboard & VQL Konsolu[/B][/TD]
+[TD]Lokal `http://127.0.0.1:8080` arayüzü ile süreç ağaçlarını, interaktif zaman çizelgesini (timeline) ve VQL sorgu motorunu görselleştirir.[/TD]
+[/TR]
+[/TABLE]
+
+[HR][/HR]
+
+[B][SIZE=5][COLOR=rgb(210, 153, 34)]💻 Hızlı Başlangıç & CLI Komutları[/COLOR][/SIZE][/B]
+
+[B]1. VMProtect Dosyasını Çözme ve Temizleme:[/B]
+[CODE=bash]
+veyronis vmp protected_sample.exe --unpack --devirtualize --output unpacked_clean.exe
+[/CODE]
+
+[B]2. Bellek Dökümünü (.dmp) Çalıştırılabilir EXE'ye Çevirme:[/B]
+[CODE=bash]
+veyronis dmp2pe memory_dump.dmp --output recovered_binary.exe --fix-iat
+[/CODE]
+
+[B]3. Obfuscation Temizleme & Gizli Metinleri Kurtarma:[/B]
+[CODE=bash]
+veyronis deobfuscate obfuscated_sample.exe --output deobf_sample.exe
+[/CODE]
+
+[B]4. Direct Syscall ve Heaven's Gate Avlama:[/B]
+[CODE=bash]
+veyronis syscalls sample.exe
+[/CODE]
+
+[B]5. Hedef Prosesi Kernel Düzeyinde Dump Etme & IDA Scripti Üretme:[/B]
+[CODE=bash]
+veyronis dump --pid 1234 --output-dir dump_results
+[/CODE]
+
+[B]6. İnteraktif Web Dashboard Başlatma:[/B]
+[CODE=bash]
+veyronis serve session.vyr --port 8080
+[/CODE]
+
+[HR][/HR]
+
+[B][SIZE=5][COLOR=rgb(188, 140, 255)]📦 Açık Kaynak & GitHub[/COLOR][/SIZE][/B]
+[B]GitHub Deposu:[/B] [URL]https://github.com/dupewon/veyronis[/URL]
+[B]Yazar:[/B] dupewon / whuq

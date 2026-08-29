@@ -90,11 +90,8 @@ impl PeParser {
             0
         };
 
-        let size_of_image = if is_64bit {
-            LittleEndian::read_u32(&bytes[opt_header_offset + 56..opt_header_offset + 60])
-        } else {
-            LittleEndian::read_u32(&bytes[opt_header_offset + 56..opt_header_offset + 60])
-        };
+        let size_of_image =
+            LittleEndian::read_u32(&bytes[opt_header_offset + 56..opt_header_offset + 60]);
 
         let size_of_headers =
             LittleEndian::read_u32(&bytes[opt_header_offset + 60..opt_header_offset + 64]);
