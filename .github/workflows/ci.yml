@@ -24,18 +24,8 @@ jobs:
       with:
         components: rustfmt, clippy
 
-    - name: Cache Cargo Dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
+    - name: Setup Rust Cache
+      uses: swatinem/rust-cache@v2
 
     - name: Check Code Formatting
       run: cargo fmt --check
@@ -44,7 +34,7 @@ jobs:
       run: cargo clippy --workspace --all-targets -- -D warnings
 
     - name: Run Workspace Test Suite
-      run: cargo test --workspace
+      run: cargo test --workspace --verbose
 
     - name: Build Release Binary
       run: cargo build --release -p veyronis-cli

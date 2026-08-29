@@ -118,8 +118,6 @@ impl Collector for LinuxCollector {
         let is_running = self.running.clone();
         #[cfg(target_os = "linux")]
         let target_pid = target.pid;
-        #[cfg(target_os = "linux")]
-        let ring_buffer = self.buffer.clone();
 
         #[cfg(target_os = "linux")]
         let handle = thread::spawn(move || {
