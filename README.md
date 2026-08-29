@@ -259,6 +259,9 @@ Veyronis provides a native **JSON-RPC 2.0 stdio MCP server** (`veyronis mcp`). A
 4. `veyronis_analyze_binary`: Analyzes PE/ELF/Mach-O sections and Shannon entropy.
 5. `veyronis_diff`: Performs semantic behavioral comparison between two artifacts.
 6. `veyronis_generate_rules`: Synthesizes automated YARA and Sigma rules from live traces.
+7. `veyronis_deobfuscate`: Eliminates opaque predicates, strips dead code, and recovers stack strings.
+8. `veyronis_convert_dump_to_pe`: Reconstructs memory dumps (`.dmp`) into valid loadable PE `.exe` files.
+9. `veyronis_vmp_unpack`: Analyzes VMProtect architecture, traces VIP/VSP bytecode, and unpacks stubs.
 
 ---
 
@@ -312,13 +315,19 @@ veyronis emulate payload.bin --max-instructions 500
 veyronis scan capture.vyr --rules rules/
 ```
 
-### 7. Static Binary Analysis & Automated PE Unpacker
+### 7. Static Binary Analysis, Deobfuscation & Memory Dump Reconstructor
 ```bash
-# Analyze sections and calculate Shannon entropy
+# Analyze PE/ELF/Mach-O sections and calculate Shannon entropy
 veyronis analyze suspicious_binary.exe
 
-# Extract decrypted in-memory PE image and repair headers
-veyronis unpack packed_sample.exe --output unpacked_clean.exe
+# Deobfuscate code, eliminate opaque predicates, unflatten CFF dispatchers, recover stack strings
+veyronis deobfuscate obfuscated_sample.bin --output deobfuscated_clean.bin
+
+# Reconstruct raw memory dump (.dmp / minidump / process page) to loadable Windows PE executable (.exe)
+veyronis dmp2pe memory.dmp --output reconstructed.exe --oep 0x1000
+
+# Analyze VMProtect 2.x/3.x architecture, trace VIP/VSP bytecode, and unpack virtualization stubs
+veyronis vmp protected_sample.exe --unpack --output vmp_unpacked.exe --devirtualize
 ```
 
 ### 8. RFC 3161 Cryptographic Timestamping

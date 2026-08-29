@@ -23,7 +23,10 @@ use veyronis_emu::ShellcodeEmulator;
 use veyronis_format::VyrReader;
 use veyronis_keystore::KeyStore;
 use veyronis_mcp::McpServer;
-use veyronis_parser::{BinaryInspector, MemoryUnpacker};
+use veyronis_parser::{
+    BinaryInspector, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions, MemoryUnpacker,
+    VmProtectAnalyzer,
+};
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 use veyronis_serve::VeyronisServer;
 
@@ -175,6 +178,68 @@ enum Commands {
             help = "Destination path for reconstructed unpacked binary"
         )]
         output: PathBuf,
+    },
+
+    #[command(
+        name = "deobfuscate",
+        about = "Deobfuscate code, strip opaque predicates, unflatten control flow, and recover stack strings"
+    )]
+    Deobfuscate {
+        #[arg(help = "Path to binary or extracted code block to deobfuscate")]
+        input: PathBuf,
+
+        #[arg(
+            short,
+            long,
+            default_value = "deobfuscated_clean.bin",
+            help = "Output path for cleaned binary"
+        )]
+        output: PathBuf,
+    },
+
+    #[command(
+        name = "dmp2pe",
+        about = "Convert memory dump (.dmp / minidump / process page) to a reconstructed, loadable PE executable"
+    )]
+    Dmp2Pe {
+        #[arg(help = "Path to .dmp memory dump file")]
+        dump_file: PathBuf,
+
+        #[arg(
+            short,
+            long,
+            default_value = "reconstructed.exe",
+            help = "Output path for reconstructed .exe"
+        )]
+        output: PathBuf,
+
+        #[arg(long, help = "Custom Original Entry Point (OEP) RVA (e.g. 0x1000)")]
+        oep: Option<String>,
+
+        #[arg(long, help = "Skip Import Address Table (IAT) reconstruction")]
+        no_iat_rebuild: bool,
+    },
+
+    #[command(
+        about = "Analyze VMProtect architecture, trace VIP/VSP bytecode, and unpack virtualization stubs"
+    )]
+    Vmp {
+        #[arg(help = "Path to VMProtected PE binary")]
+        binary: PathBuf,
+
+        #[arg(short, long, help = "Unpack and dump reconstructed PE to disk")]
+        unpack: bool,
+
+        #[arg(
+            short,
+            long,
+            default_value = "vmp_unpacked.exe",
+            help = "Destination path for unpacked binary"
+        )]
+        output: PathBuf,
+
+        #[arg(long, help = "Devirtualize and disassemble virtual bytecode handlers")]
+        devirtualize: bool,
     },
 
     #[command(about = "Issue or verify an RFC 3161 cryptographic timestamp token for an artifact")]
@@ -587,6 +652,181 @@ fn execute(command: Commands) -> Result<ExitCode, anyhow::Error> {
                 output.display().to_string().green().bold()
             );
             println!("Status:               {}", "UNPACKED SUCCESSFULLY".green());
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Deobfuscate { input, output } => {
+            let bytes = fs::read(&input)?;
+            let (cleaned, report) = DeobfuscationEngine::deobfuscate(&bytes)?;
+            fs::write(&output, &cleaned)?;
+
+            println!("{}", "=== VEYRONIS DEOBFUSCATION ENGINE ===".bold().white());
+            println!(
+                "Input File:                        {}",
+                input.display().to_string().cyan()
+            );
+            println!(
+                "Clean Output File:                 {}",
+                output.display().to_string().green().bold()
+            );
+            println!(
+                "Opaque Predicates Removed:         {}",
+                report.opaque_predicates_removed
+            );
+            println!(
+                "Dead Instructions Stripped:        {}",
+                report.dead_instructions_removed
+            );
+            println!(
+                "Control Flow Dispatchers Resolved: {}",
+                report.control_flow_dispatchers_resolved
+            );
+            println!(
+                "Clean Code Size:                   {} bytes",
+                report.clean_code_size
+            );
+
+            if !report.extracted_strings.is_empty() {
+                println!("\n{}", "Recovered Obfuscated Strings:".bold().yellow());
+                for s in &report.extracted_strings {
+                    println!(
+                        "  [Offset 0x{:04X}] {} (Method: {})",
+                        s.offset,
+                        s.value.green(),
+                        s.method.dimmed()
+                    );
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Dmp2Pe {
+            dump_file,
+            output,
+            oep,
+            no_iat_rebuild,
+        } => {
+            let bytes = fs::read(&dump_file)?;
+            let custom_oep = oep.and_then(|s| {
+                if s.starts_with("0x") || s.starts_with("0X") {
+                    u32::from_str_radix(&s[2..], 16).ok()
+                } else {
+                    s.parse::<u32>().ok()
+                }
+            });
+
+            let options = DumpToPeOptions {
+                custom_oep_rva: custom_oep,
+                rebuild_iat: !no_iat_rebuild,
+                fix_section_alignments: true,
+                unmap_sections: true,
+            };
+
+            let info = DumpToPeConverter::convert_dump(&bytes, options, &output)?;
+
+            println!(
+                "{}",
+                "=== VEYRONIS DMP TO PE RECONSTRUCTOR ===".bold().white()
+            );
+            println!(
+                "Source Memory Dump:  {}",
+                dump_file.display().to_string().cyan()
+            );
+            println!(
+                "Reconstructed PE:    {}",
+                output.display().to_string().green().bold()
+            );
+            println!(
+                "Architecture:        {}",
+                if info.is_64bit {
+                    "x86_64 (PE32+)"
+                } else {
+                    "x86 (PE32)"
+                }
+                .cyan()
+            );
+            println!("ImageBase:           0x{:X}", info.original_image_base);
+            println!("Entry Point (OEP):   0x{:X}", info.entry_point_rva);
+            println!("Sections Restored:   {}", info.section_count);
+            for sec in &info.sections {
+                println!(
+                    "  - {:<8} (VA: 0x{:06X}, Raw: 0x{:06X}, Size: {} bytes)",
+                    sec.name, sec.virtual_address, sec.raw_data_pointer, sec.raw_data_size
+                );
+            }
+            println!("Output File Size:    {} bytes", info.file_size_bytes);
+            println!(
+                "Status:              {}",
+                "RECONSTRUCTED SUCCESSFULLY".green().bold()
+            );
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Vmp {
+            binary,
+            unpack,
+            output,
+            devirtualize,
+        } => {
+            let bytes = fs::read(&binary)?;
+            let report = VmProtectAnalyzer::analyze_vmp(&bytes)?;
+
+            println!(
+                "{}",
+                "=== VEYRONIS VMPROTECT ANALYZER & UNPACKER ==="
+                    .bold()
+                    .white()
+            );
+            println!(
+                "Target Binary:            {}",
+                binary.display().to_string().cyan()
+            );
+            println!(
+                "VMProtect Detected:       {}",
+                if report.is_vmp_protected {
+                    "YES (VMProtect Active)".red().bold()
+                } else {
+                    "NO".green()
+                }
+            );
+            println!(
+                "Protection Architecture:  {}",
+                report.detected_version_hint.yellow()
+            );
+            println!("Highest Section Entropy:  {:.4}", report.highest_entropy);
+            if !report.vmp_sections.is_empty() {
+                println!(
+                    "VMP Sections:             {}",
+                    report.vmp_sections.join(", ").magenta()
+                );
+            }
+            if let Some(disp) = report.virtual_dispatcher_rva {
+                println!("VM Dispatcher Offset:     0x{:X}", disp);
+            }
+            if let Some(oep) = report.recovered_oep_rva {
+                println!("Recovered OEP Transition: 0x{:X}", oep);
+            }
+
+            if devirtualize && !report.devirtualized_instructions.is_empty() {
+                println!("\n{}", "Devirtualized Assembly Trace:".bold().yellow());
+                for (idx, line) in report.devirtualized_instructions.iter().enumerate() {
+                    println!("  [{:02}] {}", idx + 1, line.cyan());
+                }
+            }
+
+            if unpack {
+                VmProtectAnalyzer::unpack_vmp_to_file(&bytes, report.recovered_oep_rva, &output)?;
+                println!("\n{}", "Unpacking Status:".bold().white());
+                println!(
+                    "Unpacked Output PE:       {}",
+                    output.display().to_string().green().bold()
+                );
+                println!(
+                    "Status:                   {}",
+                    "UNPACKED SUCCESSFULLY".green().bold()
+                );
+            }
+
             Ok(ExitCode::SUCCESS)
         }
 

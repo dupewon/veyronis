@@ -6,7 +6,9 @@ use std::path::Path;
 use veyronis_detect::DetectionEngine;
 use veyronis_diff::DiffEngine;
 use veyronis_format::VyrReader;
-use veyronis_parser::BinaryInspector;
+use veyronis_parser::{
+    BinaryInspector, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions, VmProtectAnalyzer,
+};
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,6 +152,45 @@ impl McpServer {
                                     "passphrase": { "type": "string", "description": "Optional passphrase" }
                                 },
                                 "required": ["artifact_path"]
+                            }
+                        },
+                        {
+                            "name": "veyronis_deobfuscate",
+                            "description": "Deobfuscates binary/code by eliminating opaque predicates, stripping dead instructions, and recovering stack strings",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "input_path": { "type": "string", "description": "Path to input obfuscated binary" },
+                                    "output_path": { "type": "string", "description": "Optional destination path for clean binary" }
+                                },
+                                "required": ["input_path"]
+                            }
+                        },
+                        {
+                            "name": "veyronis_convert_dump_to_pe",
+                            "description": "Reconstructs a memory dump (.dmp / minidump / process memory page) into a valid loadable Windows PE executable (.exe)",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "dump_path": { "type": "string", "description": "Path to .dmp memory dump file" },
+                                    "output_path": { "type": "string", "description": "Destination path for reconstructed .exe" },
+                                    "custom_oep_rva": { "type": "integer", "description": "Optional custom Original Entry Point (OEP) RVA" },
+                                    "rebuild_iat": { "type": "boolean", "description": "Whether to repair and rebuild the Import Address Table" }
+                                },
+                                "required": ["dump_path", "output_path"]
+                            }
+                        },
+                        {
+                            "name": "veyronis_vmp_unpack",
+                            "description": "Analyzes VMProtect architecture, traces VIP/VSP bytecode, and unpacks virtualization stubs",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "binary_path": { "type": "string", "description": "Path to VMProtected binary" },
+                                    "output_path": { "type": "string", "description": "Destination path for unpacked binary" },
+                                    "unpack": { "type": "boolean", "description": "Whether to dump and reconstruct clean PE" }
+                                },
+                                "required": ["binary_path"]
                             }
                         }
                     ]
@@ -343,6 +384,101 @@ impl McpServer {
                 Ok(json!({
                     "yara_rule": yara_rule,
                     "sigma_rule": sigma_rule
+                }))
+            }
+
+            "veyronis_deobfuscate" => {
+                let input_path = args
+                    .get("input_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing input_path"))?;
+                let bytes = std::fs::read(input_path)?;
+                let (cleaned, report) = DeobfuscationEngine::deobfuscate(&bytes)?;
+
+                if let Some(out_path) = args.get("output_path").and_then(|v| v.as_str()) {
+                    std::fs::write(out_path, &cleaned)?;
+                }
+
+                Ok(json!({
+                    "opaque_predicates_removed": report.opaque_predicates_removed,
+                    "dead_instructions_removed": report.dead_instructions_removed,
+                    "control_flow_dispatchers_resolved": report.control_flow_dispatchers_resolved,
+                    "clean_code_size": report.clean_code_size,
+                    "extracted_strings": report.extracted_strings
+                }))
+            }
+
+            "veyronis_convert_dump_to_pe" => {
+                let dump_path = args
+                    .get("dump_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing dump_path"))?;
+                let output_path = args
+                    .get("output_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing output_path"))?;
+                let custom_oep = args
+                    .get("custom_oep_rva")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32);
+                let rebuild_iat = args
+                    .get("rebuild_iat")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+
+                let bytes = std::fs::read(dump_path)?;
+                let options = DumpToPeOptions {
+                    custom_oep_rva: custom_oep,
+                    rebuild_iat,
+                    fix_section_alignments: true,
+                    unmap_sections: true,
+                };
+
+                let info =
+                    DumpToPeConverter::convert_dump(&bytes, options, Path::new(output_path))?;
+
+                Ok(json!({
+                    "is_64bit": info.is_64bit,
+                    "original_image_base": format!("0x{:X}", info.original_image_base),
+                    "entry_point_rva": format!("0x{:X}", info.entry_point_rva),
+                    "section_count": info.section_count,
+                    "output_file_size": info.file_size_bytes,
+                    "status": "RECONSTRUCTED_SUCCESSFULLY"
+                }))
+            }
+
+            "veyronis_vmp_unpack" => {
+                let bin_path = args
+                    .get("binary_path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing binary_path"))?;
+                let bytes = std::fs::read(bin_path)?;
+                let report = VmProtectAnalyzer::analyze_vmp(&bytes)?;
+
+                if args
+                    .get("unpack")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    let out_path = args
+                        .get("output_path")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("vmp_unpacked.exe");
+                    VmProtectAnalyzer::unpack_vmp_to_file(
+                        &bytes,
+                        report.recovered_oep_rva,
+                        Path::new(out_path),
+                    )?;
+                }
+
+                Ok(json!({
+                    "is_vmp_protected": report.is_vmp_protected,
+                    "detected_version": report.detected_version_hint,
+                    "highest_entropy": report.highest_entropy,
+                    "vmp_sections": report.vmp_sections,
+                    "virtual_dispatcher_rva": report.virtual_dispatcher_rva.map(|v| format!("0x{:X}", v)),
+                    "recovered_oep_rva": report.recovered_oep_rva.map(|v| format!("0x{:X}", v)),
+                    "devirtualized_instructions": report.devirtualized_instructions
                 }))
             }
 
