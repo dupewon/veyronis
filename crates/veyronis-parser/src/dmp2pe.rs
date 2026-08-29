@@ -235,7 +235,7 @@ impl DumpToPeConverter {
                 optional_header_offset + 96 // x86 DataDirectory start
             };
 
-            let import_dir_offset = data_dir_offset + (1 * 8); // Directory 1 = Imports
+            let import_dir_offset = data_dir_offset + 8; // Directory 1 = Imports
             if import_dir_offset + 8 <= pe_file.len() {
                 let import_rva =
                     LittleEndian::read_u32(&pe_file[import_dir_offset..import_dir_offset + 4]);

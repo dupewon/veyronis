@@ -188,7 +188,7 @@ impl DeobfuscationEngine {
         while i + 4 <= code.len() {
             if code[i] == 0xC6 && code[i + 1] == 0x45 {
                 let byte_val = code[i + 3];
-                if byte_val >= 0x20 && byte_val <= 0x7E {
+                if (0x20..=0x7E).contains(&byte_val) {
                     if current_chars.is_empty() {
                         start_offset = i;
                     }
