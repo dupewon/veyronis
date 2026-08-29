@@ -1,6 +1,7 @@
 use crate::entropy::calculate_entropy;
 use byteorder::{ByteOrder, LittleEndian};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeSection {
@@ -11,19 +12,40 @@ pub struct PeSection {
     pub raw_data_ptr: u32,
     pub entropy: f64,
     pub characteristics: u32,
+    pub is_executable: bool,
+    pub is_writable: bool,
+    pub is_readable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeDataDirectory {
+    pub name: String,
+    pub rva: u32,
+    pub size: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeReport {
     pub is_64bit: bool,
     pub machine: u16,
+    pub machine_name: String,
     pub number_of_sections: u16,
     pub timestamp: u32,
     pub entry_point: u32,
     pub image_base: u64,
+    pub size_of_image: u32,
+    pub size_of_headers: u32,
+    pub checksum: u32,
+    pub subsystem: u16,
+    pub subsystem_name: String,
+    pub dll_characteristics: u16,
+    pub data_directories: HashMap<String, PeDataDirectory>,
     pub overall_entropy: f64,
     pub sections: Vec<PeSection>,
     pub detected_suspicious_apis: Vec<String>,
+    pub debug_pdb_path: Option<String>,
+    pub tls_callbacks_present: bool,
+    pub rich_header_hash: Option<String>,
     pub is_packed: bool,
 }
 
@@ -68,6 +90,71 @@ impl PeParser {
             0
         };
 
+        let size_of_image = if is_64bit {
+            LittleEndian::read_u32(&bytes[opt_header_offset + 56..opt_header_offset + 60])
+        } else {
+            LittleEndian::read_u32(&bytes[opt_header_offset + 56..opt_header_offset + 60])
+        };
+
+        let size_of_headers =
+            LittleEndian::read_u32(&bytes[opt_header_offset + 60..opt_header_offset + 64]);
+        let checksum =
+            LittleEndian::read_u32(&bytes[opt_header_offset + 64..opt_header_offset + 68]);
+        let subsystem =
+            LittleEndian::read_u16(&bytes[opt_header_offset + 68..opt_header_offset + 70]);
+        let dll_characteristics =
+            LittleEndian::read_u16(&bytes[opt_header_offset + 70..opt_header_offset + 72]);
+
+        // Parse Data Directories
+        let data_dir_offset = if is_64bit {
+            opt_header_offset + 112
+        } else {
+            opt_header_offset + 96
+        };
+
+        let dir_names = [
+            "EXPORT_TABLE",
+            "IMPORT_TABLE",
+            "RESOURCE_TABLE",
+            "EXCEPTION_TABLE",
+            "CERTIFICATE_TABLE",
+            "BASE_RELOCATION_TABLE",
+            "DEBUG",
+            "ARCHITECTURE",
+            "GLOBAL_PTR",
+            "TLS_TABLE",
+            "LOAD_CONFIG_TABLE",
+            "BOUND_IMPORT",
+            "IAT",
+            "DELAY_IMPORT_DESCRIPTOR",
+            "CLR_RUNTIME_HEADER",
+            "RESERVED",
+        ];
+
+        let mut data_directories = HashMap::new();
+        let mut tls_callbacks_present = false;
+
+        for (idx, &dir_name) in dir_names.iter().enumerate() {
+            let offset = data_dir_offset + (idx * 8);
+            if offset + 8 <= bytes.len() && offset + 8 <= opt_header_offset + size_of_opt_header {
+                let rva = LittleEndian::read_u32(&bytes[offset..offset + 4]);
+                let size = LittleEndian::read_u32(&bytes[offset + 4..offset + 8]);
+                if rva > 0 && size > 0 {
+                    if dir_name == "TLS_TABLE" {
+                        tls_callbacks_present = true;
+                    }
+                    data_directories.insert(
+                        dir_name.to_string(),
+                        PeDataDirectory {
+                            name: dir_name.to_string(),
+                            rva,
+                            size,
+                        },
+                    );
+                }
+            }
+        }
+
         // Section Headers
         let mut sections = Vec::new();
         let section_table_offset = opt_header_offset + size_of_opt_header;
@@ -102,6 +189,10 @@ impl PeParser {
                 high_entropy_section_count += 1;
             }
 
+            let is_executable = (characteristics & 0x2000_0000) != 0; // IMAGE_SCN_MEM_EXECUTE
+            let is_readable = (characteristics & 0x4000_0000) != 0; // IMAGE_SCN_MEM_READ
+            let is_writable = (characteristics & 0x8000_0000) != 0; // IMAGE_SCN_MEM_WRITE
+
             sections.push(PeSection {
                 name,
                 virtual_size,
@@ -110,6 +201,9 @@ impl PeParser {
                 raw_data_ptr: raw_data_ptr as u32,
                 entropy: sec_entropy,
                 characteristics,
+                is_executable,
+                is_writable,
+                is_readable,
             });
         }
 
@@ -124,6 +218,9 @@ impl PeParser {
             "IsDebuggerPresent",
             "CheckRemoteDebuggerPresent",
             "AdjustTokenPrivileges",
+            "NtQueryInformationProcess",
+            "MiniDumpWriteDump",
+            "LdrLoadDll",
         ];
 
         let mut detected_suspicious_apis = Vec::new();
@@ -134,19 +231,71 @@ impl PeParser {
             }
         }
 
+        // Scan for PDB Path in Debug Directory or strings
+        let mut debug_pdb_path = None;
+        if let Some(pos) = bytes_str.find(".pdb") {
+            let start = bytes_str[..pos].rfind(['\\', '/']).unwrap_or(0);
+            let pdb_sub = &bytes_str[start..pos + 4]
+                .trim_matches(|c: char| c.is_control() || c == '\\' || c == '/');
+            if !pdb_sub.is_empty() && pdb_sub.len() < 128 {
+                debug_pdb_path = Some(pdb_sub.to_string());
+            }
+        }
+
+        // Calculate Rich Header Hash if present (between DOS stub and e_lfanew)
+        let mut rich_header_hash = None;
+        if e_lfanew > 0x80 && e_lfanew <= bytes.len() {
+            let stub_region = &bytes[0x80..e_lfanew];
+            if stub_region.windows(4).any(|w| w == b"Rich") {
+                let hash = blake3::hash(stub_region).to_hex().to_string();
+                rich_header_hash = Some(hash);
+            }
+        }
+
         let overall_entropy = calculate_entropy(bytes);
         let is_packed = overall_entropy > 7.3 || high_entropy_section_count > 0;
+
+        let machine_name = match machine {
+            0x8664 => "AMD64 / x86_64".to_string(),
+            0x014C => "i386 / x86".to_string(),
+            0xAA64 => "ARM64".to_string(),
+            0x0200 => "IA64".to_string(),
+            _ => format!("Unknown (0x{:X})", machine),
+        };
+
+        let subsystem_name = match subsystem {
+            1 => "Native Driver".to_string(),
+            2 => "Windows GUI".to_string(),
+            3 => "Windows Console".to_string(),
+            7 => "POSIX Console".to_string(),
+            9 => "Windows CE GUI".to_string(),
+            10 => "EFI Application".to_string(),
+            11 => "EFI Boot Service Driver".to_string(),
+            12 => "EFI Runtime Driver".to_string(),
+            _ => format!("Other ({})", subsystem),
+        };
 
         Ok(PeReport {
             is_64bit,
             machine,
+            machine_name,
             number_of_sections,
             timestamp,
             entry_point,
             image_base,
+            size_of_image,
+            size_of_headers,
+            checksum,
+            subsystem,
+            subsystem_name,
+            dll_characteristics,
+            data_directories,
             overall_entropy,
             sections,
             detected_suspicious_apis,
+            debug_pdb_path,
+            tls_callbacks_present,
+            rich_header_hash,
             is_packed,
         })
     }

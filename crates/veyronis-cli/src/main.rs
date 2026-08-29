@@ -24,8 +24,8 @@ use veyronis_format::VyrReader;
 use veyronis_keystore::KeyStore;
 use veyronis_mcp::McpServer;
 use veyronis_parser::{
-    BinaryInspector, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions, MemoryUnpacker,
-    VmProtectAnalyzer,
+    BinaryInspector, DeepProcessDumper, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions,
+    KernelIntegrityStatus, MemoryUnpacker, VmProtectAnalyzer,
 };
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 use veyronis_serve::VeyronisServer;
@@ -241,6 +241,35 @@ enum Commands {
         #[arg(long, help = "Devirtualize and disassemble virtual bytecode handlers")]
         devirtualize: bool,
     },
+
+    #[command(
+        name = "dump",
+        about = "Perform deep process memory dump, kernel integrity check, multi-module unpack, and deobfuscation"
+    )]
+    Dump {
+        #[arg(short, long, help = "Target Process ID (PID) to dump")]
+        pid: u32,
+
+        #[arg(
+            short,
+            long,
+            default_value = "dump_output",
+            help = "Directory to store reconstructed modules and IDA scripts"
+        )]
+        output_dir: PathBuf,
+
+        #[arg(long, help = "Disable automated VMProtect unpacking")]
+        no_unpack: bool,
+
+        #[arg(long, help = "Disable automated deobfuscation")]
+        no_deobf: bool,
+    },
+
+    #[command(
+        name = "testsign",
+        about = "Check Windows Code Integrity, Driver Signature Enforcement, and Test Signing status"
+    )]
+    TestSign,
 
     #[command(about = "Issue or verify an RFC 3161 cryptographic timestamp token for an artifact")]
     Timestamp {
@@ -827,6 +856,133 @@ fn execute(command: Commands) -> Result<ExitCode, anyhow::Error> {
                 );
             }
 
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Dump {
+            pid,
+            output_dir,
+            no_unpack,
+            no_deobf,
+        } => {
+            println!(
+                "{}",
+                "=== VEYRONIS DEEP PROCESS DUMPER & RECONSTRUCTOR ==="
+                    .bold()
+                    .white()
+            );
+            println!("Target PID:          {}", pid.to_string().cyan());
+            println!(
+                "Output Directory:    {}",
+                output_dir.display().to_string().cyan()
+            );
+
+            let report = DeepProcessDumper::dump_and_analyze_process(
+                pid,
+                &output_dir,
+                !no_unpack,
+                !no_deobf,
+            )?;
+
+            println!(
+                "Dumper Capture Mode: {}",
+                report.kernel_dumper_mode.yellow().bold()
+            );
+            println!(
+                "Modules Extracted:   {}",
+                report.total_modules_extracted.to_string().green()
+            );
+            println!(
+                "Opaque Predicates:   {}",
+                report.total_opaque_predicates_eliminated
+            );
+            println!(
+                "Dead Code Cleaned:   {}",
+                report.total_dead_instructions_cleaned
+            );
+            println!("Strings Recovered:   {}", report.total_strings_recovered);
+
+            println!("\n{}", "Extracted In-Memory Modules:".bold().white());
+            for m in &report.modules {
+                println!(
+                    "  - {:<24} (Base: 0x{:012X}, Size: {} bytes, VMP: {}) -> {}",
+                    m.module_name.cyan(),
+                    m.base_address,
+                    m.image_size,
+                    if m.is_vmp_protected {
+                        "YES".red().bold()
+                    } else {
+                        "NO".green()
+                    },
+                    m.reconstructed_file_path.dimmed()
+                );
+            }
+
+            if let Some(script) = &report.generated_ida_script_path {
+                println!(
+                    "\n{}",
+                    "Generated IDA Pro Automation Script:".bold().green()
+                );
+                println!("  Script: {}", script.cyan().bold());
+                println!("  Run in IDA: File -> Script File... -> Select this script to overlay names & strings!");
+            }
+
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::TestSign => {
+            let status = KernelIntegrityStatus::check();
+            println!(
+                "{}",
+                "=== VEYRONIS WINDOWS CODE INTEGRITY & TEST SIGNING ==="
+                    .bold()
+                    .white()
+            );
+            println!(
+                "Platform:                  {}",
+                if status.is_windows {
+                    "Windows Native"
+                } else {
+                    "Non-Windows (POSIX)"
+                }
+                .cyan()
+            );
+            println!(
+                "Test Signing Mode:         {}",
+                if status.test_signing_enabled {
+                    "ENABLED (Ready for Kernel Drivers)".green().bold()
+                } else {
+                    "DISABLED (Standard Retail Mode)".yellow()
+                }
+            );
+            println!(
+                "Kernel Debugger:           {}",
+                if status.kernel_debugger_present {
+                    "PRESENT".green()
+                } else {
+                    "NOT DETECTED".dimmed()
+                }
+            );
+            println!(
+                "Signature Enforcement:     {}",
+                if status.driver_signature_enforcement_active {
+                    "ACTIVE".yellow()
+                } else {
+                    "BYPASSED / TEST SIGN".green()
+                }
+            );
+            println!(
+                "Kernel Driver Device:      {}",
+                if status.kernel_driver_available {
+                    "ACCESSIBLE (\\Device\\VeyronisCore)".green().bold()
+                } else {
+                    "NOT LOADED (Using Direct NT API Memory Fallback)".dimmed()
+                }
+            );
+            println!(
+                "Diagnostic Details:        {}",
+                status.diagnostic_details.dimmed()
+            );
             Ok(ExitCode::SUCCESS)
         }
 

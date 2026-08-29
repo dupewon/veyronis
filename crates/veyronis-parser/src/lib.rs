@@ -2,6 +2,7 @@ pub mod deobf;
 pub mod dmp2pe;
 pub mod elf;
 pub mod entropy;
+pub mod kernel_dumper;
 pub mod macho;
 pub mod pe;
 pub mod unpacker;
@@ -11,8 +12,11 @@ pub use deobf::{DeobfReport, DeobfuscationEngine, ExtractedString};
 pub use dmp2pe::{DumpToPeConverter, DumpToPeOptions, ReconstructedPeInfo, ReconstructedSection};
 pub use elf::{ElfParser, ElfReport};
 pub use entropy::{calculate_entropy, is_likely_packed, ENTROPY_PACKED_THRESHOLD};
+pub use kernel_dumper::{
+    DeepDumpSessionReport, DeepProcessDumper, KernelIntegrityStatus, ProcessModuleInfo,
+};
 pub use macho::{MachoParser, MachoReport};
-pub use pe::{PeParser, PeReport, PeSection};
+pub use pe::{PeDataDirectory, PeParser, PeReport, PeSection};
 pub use unpacker::MemoryUnpacker;
 pub use vmp::{VmProtectAnalyzer, VmpAnalysisReport, VmpVirtualInstruction};
 

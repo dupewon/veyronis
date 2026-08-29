@@ -6,6 +6,7 @@ Comprehensive IDA Pro 7.x / 8.x / 9.x integration for:
   - Basic block execution frequency heatmaps (Hex-Rays & Disassembly)
   - Deobfuscated string and IAT xref synchronization
   - Direct live connection to Veyronis daemon (http://127.0.0.1:8080)
+  - Automated Deep Process Dump & VMProtect OEP loader
 """
 
 import json
@@ -20,6 +21,7 @@ try:
     import ida_ida
     import ida_funcs
     import ida_nalt
+    import idc
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -29,6 +31,7 @@ COLOR_HIT_COLD = 0x332211     # Dark Blue
 COLOR_HIT_WARM = 0x664411     # Blue-Cyan
 COLOR_HIT_HOT = 0x2222AA      # Red / High Activity
 COLOR_THREAT = 0x111188       # Dark Red / Alert
+COLOR_OEP = 0x228822          # Green / Recovered OEP
 
 
 class VeyronisIdaBridge:
@@ -37,7 +40,10 @@ class VeyronisIdaBridge:
 
     def fetch_live_events(self):
         try:
-            req = urllib.request.Request(f"{self.api_url}/api/events", headers={"User-Agent": "Veyronis-IDA-Plugin/1.0"})
+            req = urllib.request.Request(
+                f"{self.api_url}/api/events",
+                headers={"User-Agent": "Veyronis-IDA-Plugin/1.0"}
+            )
             with urllib.request.urlopen(req, timeout=5) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode("utf-8"))
@@ -53,6 +59,16 @@ class VeyronisIdaBridge:
             return []
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
+
+    def load_dump_directory(self, dump_dir):
+        script_file = os.path.join(dump_dir, "apply_veyronis_ida.py")
+        if os.path.exists(script_file):
+            print(f"[+] Veyronis: Executing generated IDA script: {script_file}")
+            with open(script_file, "r", encoding="utf-8") as f:
+                code = f.read()
+                exec(code, globals())
+            return True
+        return False
 
     def apply_runtime_telemetry(self, events):
         if not IDA_AVAILABLE:
@@ -73,7 +89,6 @@ class VeyronisIdaBridge:
 
             # 1. Overlay API Call / Syscall arguments
             if ev_type in ["CryptoOperation", "FileOpen", "NetworkConnect", "MemoryMap", "MemoryProtect"]:
-                # Check for address hints
                 rva = data.get("address") or data.get("rva") or 0
                 if rva > 0:
                     ea = image_base + rva
@@ -86,19 +101,24 @@ class VeyronisIdaBridge:
         print(f"[+] Veyronis: Done! {applied_comments} runtime comments attached, {colored_blocks} items highlighted.")
 
 
-def run_plugin(file_path=None):
+def run_plugin(path=None):
     bridge = VeyronisIdaBridge()
-    events = []
 
-    if file_path and os.path.exists(file_path):
-        events = bridge.load_events_from_file(file_path)
-    else:
-        events = bridge.fetch_live_events()
+    if path:
+        if os.path.isdir(path):
+            if bridge.load_dump_directory(path):
+                return
+        elif os.path.isfile(path):
+            events = bridge.load_events_from_file(path)
+            if events:
+                bridge.apply_runtime_telemetry(events)
+                return
 
+    events = bridge.fetch_live_events()
     if events:
         bridge.apply_runtime_telemetry(events)
     else:
-        print("[-] Veyronis: No events available to apply.")
+        print("[-] Veyronis: No events or dump directory provided.")
 
 
 if __name__ == "__main__":

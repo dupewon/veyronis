@@ -7,7 +7,8 @@ use veyronis_detect::DetectionEngine;
 use veyronis_diff::DiffEngine;
 use veyronis_format::VyrReader;
 use veyronis_parser::{
-    BinaryInspector, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions, VmProtectAnalyzer,
+    BinaryInspector, DeepProcessDumper, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions,
+    VmProtectAnalyzer,
 };
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 
@@ -191,6 +192,20 @@ impl McpServer {
                                     "unpack": { "type": "boolean", "description": "Whether to dump and reconstruct clean PE" }
                                 },
                                 "required": ["binary_path"]
+                            }
+                        },
+                        {
+                            "name": "veyronis_deep_dump_process",
+                            "description": "Performs deep in-memory multi-module dump, unmapping, VM unpacking, deobfuscation, and generates IDA Pro automation scripts",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "pid": { "type": "integer", "description": "Target Process ID (PID) to dump" },
+                                    "output_dir": { "type": "string", "description": "Destination directory for reconstructed PE files and IDA scripts" },
+                                    "enable_unpack": { "type": "boolean", "description": "Whether to run VM unpacking (default: true)" },
+                                    "enable_deobf": { "type": "boolean", "description": "Whether to run deobfuscation (default: true)" }
+                                },
+                                "required": ["pid", "output_dir"]
                             }
                         }
                     ]
@@ -479,6 +494,43 @@ impl McpServer {
                     "virtual_dispatcher_rva": report.virtual_dispatcher_rva.map(|v| format!("0x{:X}", v)),
                     "recovered_oep_rva": report.recovered_oep_rva.map(|v| format!("0x{:X}", v)),
                     "devirtualized_instructions": report.devirtualized_instructions
+                }))
+            }
+
+            "veyronis_deep_dump_process" => {
+                let pid =
+                    args.get("pid")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("missing pid"))? as u32;
+                let out_dir = args
+                    .get("output_dir")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing output_dir"))?;
+                let enable_unpack = args
+                    .get("enable_unpack")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                let enable_deobf = args
+                    .get("enable_deobf")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+
+                let report = DeepProcessDumper::dump_and_analyze_process(
+                    pid,
+                    Path::new(out_dir),
+                    enable_unpack,
+                    enable_deobf,
+                )?;
+
+                Ok(json!({
+                    "target_pid": report.target_pid,
+                    "kernel_dumper_mode": report.kernel_dumper_mode,
+                    "total_modules_extracted": report.total_modules_extracted,
+                    "total_strings_recovered": report.total_strings_recovered,
+                    "total_opaque_predicates_eliminated": report.total_opaque_predicates_eliminated,
+                    "total_dead_instructions_cleaned": report.total_dead_instructions_cleaned,
+                    "modules": report.modules,
+                    "generated_ida_script_path": report.generated_ida_script_path
                 }))
             }
 

@@ -12,6 +12,7 @@ pub struct IncidentExplanation {
     pub recommended_actions: Vec<String>,
     pub synthesized_yara: String,
     pub synthesized_sigma: String,
+    pub synthesized_ida_python: String,
 }
 
 pub struct IncidentExplainer;
@@ -100,6 +101,11 @@ impl IncidentExplainer {
             if report.risk_score >= 75 { "critical" } else { "high" }
         );
 
+        let synthesized_ida_python = format!(
+            "# Veyronis Auto-Generated IDA Pro Reverse Engineering Script\nimport idc\nimport ida_bytes\nimport ida_nalt\n\nbase = ida_nalt.get_imagebase()\nprint(f'[+] Veyronis AI: Overlaying incident metadata for {root_proc} (Base: 0x{{base:X}})')\n# Annotate process entry\nidc.set_name(base + 0x1000, 'Veyronis_MainEntry_{}')\nida_bytes.set_item_color(base + 0x1000, 0x228822)\nprint('[+] IDA script execution complete.')\n",
+            root_proc.replace('.', "_")
+        );
+
         IncidentExplanation {
             summary_tr,
             summary_en,
@@ -108,6 +114,7 @@ impl IncidentExplainer {
             recommended_actions: actions,
             synthesized_yara,
             synthesized_sigma,
+            synthesized_ida_python,
         }
     }
 
