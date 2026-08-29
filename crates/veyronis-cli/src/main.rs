@@ -25,7 +25,7 @@ use veyronis_keystore::KeyStore;
 use veyronis_mcp::McpServer;
 use veyronis_parser::{
     BinaryInspector, DeepProcessDumper, DeobfuscationEngine, DumpToPeConverter, DumpToPeOptions,
-    KernelIntegrityStatus, MemoryUnpacker, VmProtectAnalyzer,
+    KernelIntegrityStatus, MemoryUnpacker, SyscallHunter, VmProtectAnalyzer, VmProtectPatcher,
 };
 use veyronis_query::{Parser as VqlParser, QueryEngine};
 use veyronis_serve::VeyronisServer;
@@ -270,6 +270,33 @@ enum Commands {
         about = "Check Windows Code Integrity, Driver Signature Enforcement, and Test Signing status"
     )]
     TestSign,
+
+    #[command(
+        name = "syscalls",
+        aliases = ["heavensgate"],
+        about = "Hunt direct/indirect syscalls, Heaven's Gate transitions, and resolve raw SSN APIs"
+    )]
+    Syscalls {
+        #[arg(help = "Path to target binary")]
+        binary: PathBuf,
+    },
+
+    #[command(
+        name = "patch-vmp",
+        about = "Re-assemble devirtualized code and in-place patch VMProtect stubs in a PE executable"
+    )]
+    PatchVmp {
+        #[arg(help = "Path to original VMProtected PE binary")]
+        binary: PathBuf,
+
+        #[arg(
+            short,
+            long,
+            default_value = "patched_clean.exe",
+            help = "Output path for patched PE binary"
+        )]
+        output: PathBuf,
+    },
 
     #[command(about = "Issue or verify an RFC 3161 cryptographic timestamp token for an artifact")]
     Timestamp {
@@ -983,6 +1010,88 @@ fn execute(command: Commands) -> Result<ExitCode, anyhow::Error> {
                 "Diagnostic Details:        {}",
                 status.diagnostic_details.dimmed()
             );
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::Syscalls { binary } => {
+            let bytes = fs::read(&binary)?;
+            let stubs = SyscallHunter::hunt_syscalls(&bytes);
+
+            println!(
+                "{}",
+                "=== VEYRONIS SYSCALL & HEAVEN'S GATE HUNTER ==="
+                    .bold()
+                    .white()
+            );
+            println!(
+                "Target Binary:       {}",
+                binary.display().to_string().cyan()
+            );
+            println!(
+                "Total Stubs Found:   {}",
+                stubs.len().to_string().green().bold()
+            );
+
+            for s in &stubs {
+                println!(
+                    "\n[Offset 0x{:06X}] {} (Type: {:?})",
+                    s.offset,
+                    s.resolved_nt_api_name.green().bold(),
+                    s.invocation_type
+                );
+                if let Some(ssn) = s.ssn {
+                    println!("  SSN:               0x{:04X} ({})", ssn, ssn);
+                }
+                println!("  Description:       {}", s.description.yellow());
+                print!("  Disassembly Bytes: ");
+                for b in &s.raw_bytes {
+                    print!("{:02X} ", b);
+                }
+                println!();
+            }
+
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Commands::PatchVmp { binary, output } => {
+            let bytes = fs::read(&binary)?;
+            let vmp_report = VmProtectAnalyzer::analyze_vmp(&bytes)?;
+
+            println!(
+                "{}",
+                "=== VEYRONIS VMPROTECT RE-ASSEMBLER & PATCHER ==="
+                    .bold()
+                    .white()
+            );
+            println!(
+                "Target Binary:       {}",
+                binary.display().to_string().cyan()
+            );
+            println!(
+                "Output Patched PE:   {}",
+                output.display().to_string().green().bold()
+            );
+
+            let patch_report = VmProtectPatcher::patch_and_save_pe(
+                &bytes,
+                &vmp_report.devirtualized_instructions,
+                &output,
+            )?;
+
+            println!("Patch Offset:        0x{:X}", patch_report.patch_offset);
+            println!(
+                "Patched Bytes:       {} bytes",
+                patch_report.patched_bytes_len
+            );
+            println!(
+                "NOP Padding:         {} bytes",
+                patch_report.nop_padding_len
+            );
+            println!(
+                "Status:              {}",
+                "PATCHED AND RE-ASSEMBLED SUCCESSFULLY".green().bold()
+            );
+
             Ok(ExitCode::SUCCESS)
         }
 

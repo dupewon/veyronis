@@ -12,3 +12,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 colored.workspace = true
 anyhow.workspace = true
+serde = { workspace = true }

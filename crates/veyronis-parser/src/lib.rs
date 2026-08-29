@@ -1,14 +1,18 @@
 pub mod deobf;
+pub mod dkom;
 pub mod dmp2pe;
 pub mod elf;
 pub mod entropy;
 pub mod kernel_dumper;
 pub mod macho;
 pub mod pe;
+pub mod syscalls;
 pub mod unpacker;
 pub mod vmp;
+pub mod vmp_patcher;
 
 pub use deobf::{DeobfReport, DeobfuscationEngine, ExtractedString};
+pub use dkom::{DkomPageReader, VirtualAddressComponents};
 pub use dmp2pe::{DumpToPeConverter, DumpToPeOptions, ReconstructedPeInfo, ReconstructedSection};
 pub use elf::{ElfParser, ElfReport};
 pub use entropy::{calculate_entropy, is_likely_packed, ENTROPY_PACKED_THRESHOLD};
@@ -17,8 +21,10 @@ pub use kernel_dumper::{
 };
 pub use macho::{MachoParser, MachoReport};
 pub use pe::{PeDataDirectory, PeParser, PeReport, PeSection};
+pub use syscalls::{DetectedSyscallStub, SyscallHunter, SyscallInvocationType};
 pub use unpacker::MemoryUnpacker;
 pub use vmp::{VmProtectAnalyzer, VmpAnalysisReport, VmpVirtualInstruction};
+pub use vmp_patcher::{PatchReport, VmProtectPatcher};
 
 use colored::*;
 use std::fs;
