@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_syscall_hunter_detects_rwx_stager() {
-        let p = ProcessIdentity::new(100, None, 1000, "c:\\malware.exe", 1);
+        let p = ProcessIdentity::new(100, None, 1000, "malware.exe", 1);
         let ev = VirEvent::new(
             p,
             EventType::MemoryProtect,

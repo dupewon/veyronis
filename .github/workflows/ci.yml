@@ -11,19 +11,21 @@ jobs:
     name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: Set up Rust
+    - name: Set up Rust Toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy
 
     - name: Cache Cargo Dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -32,14 +34,16 @@ jobs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
-    - name: Check Formatting
+    - name: Check Code Formatting
       run: cargo fmt --check
 
-    - name: Run Clippy Lints
+    - name: Run Clippy Linter
       run: cargo clippy --workspace --all-targets -- -D warnings
 
-    - name: Run Test Suite
+    - name: Run Workspace Test Suite
       run: cargo test --workspace
 
     - name: Build Release Binary

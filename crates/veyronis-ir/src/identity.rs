@@ -52,15 +52,21 @@ impl ProcessIdentity {
 
     /// Derives a deterministic canonical key for process identity matching across runs.
     pub fn canonical_name(&self) -> &str {
-        if let Some(name) = std::path::Path::new(&self.executable_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-        {
-            name
-        } else if !self.executable_path.is_empty() {
-            &self.executable_path
-        } else {
-            "unknown"
+        if self.executable_path.is_empty() {
+            return "unknown";
+        }
+        let s = self.executable_path.as_str();
+        let last_sep = s.rfind(|c| c == '/' || c == '\\');
+        match last_sep {
+            Some(idx) => {
+                let name = &s[idx + 1..];
+                if name.is_empty() {
+                    s
+                } else {
+                    name
+                }
+            }
+            None => s,
         }
     }
 }

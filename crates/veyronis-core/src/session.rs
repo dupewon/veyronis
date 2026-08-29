@@ -120,7 +120,7 @@ impl RecordSession {
                         proc.clone(),
                         EventType::FileWrite,
                         EventData::FileWrite(FileWriteData {
-                            path: "C:\\Users\\User\\Documents\\confidential.docx.encrypted".into(),
+                            path: "confidential_data.docx.encrypted".into(),
                             bytes_written: 4096,
                             offset: 0,
                             content_hash: None,

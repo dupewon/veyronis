@@ -111,14 +111,14 @@ mod tests {
 
     #[test]
     fn test_behavior_embedding_similarity() {
-        let p = ProcessIdentity::new(100, None, 1000, "c:\\target.exe", 1);
+        let p = ProcessIdentity::new(100, None, 1000, "target.exe", 1);
 
         let ev1 = VirEvent::new(
             p,
             EventType::ProcessStart,
             EventData::ProcessStart(ProcessStartData {
-                executable_path: "c:\\target.exe".into(),
-                command_line: vec!["c:\\target.exe".into()],
+                executable_path: "target.exe".into(),
+                command_line: vec!["target.exe".into()],
                 working_directory: None,
                 parent_pid: None,
                 environment_keys: vec![],

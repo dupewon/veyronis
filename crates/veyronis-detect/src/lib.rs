@@ -31,7 +31,7 @@ mod tests {
                 p.clone(),
                 EventType::FileWrite,
                 EventData::FileWrite(FileWriteData {
-                    path: format!("c:\\files\\doc_{}.vyr_locked", i),
+                    path: format!("/files/doc_{}.vyr_locked", i),
                     bytes_written: 1024,
                     offset: 0,
                     content_hash: None,
