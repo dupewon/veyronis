@@ -44,7 +44,7 @@
 
 <br>
 
-**CheatGlobal:** `whuq`  
+**CheatGlobal:** `dupewon`  
 **GitHub:** [`dupewon`](https://github.com/dupewon)  
 **YouTube:** [`dupewon`](https://youtube.com/@dupewon)
 
