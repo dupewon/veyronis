@@ -44,7 +44,7 @@
 
 <br>
 
-**CheatGlobal:** `dupewon`  
+**CheatGlobal:** `dupewon1337`  
 **GitHub:** [`dupewon`](https://github.com/dupewon)  
 **YouTube:** [`dupewon`](https://youtube.com/@dupewon)
 
@@ -602,7 +602,7 @@ RECORD ──► NORMALIZE ──► PRESERVE ──► ANALYZE ──► EMULAT
 **Lead Architect & Developer**  
 `dupewon`
 
-**CheatGlobal:** [`dupewon`](https://cheatglobal.com)  
+**CheatGlobal:** [`dupewon1337`](https://cheatglobal.com)  
 **GitHub:** [`dupewon`](https://github.com/dupewon)  
 **YouTube:** [`dupewon`](https://youtube.com/@dupewon)
 
