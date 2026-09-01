@@ -600,9 +600,9 @@ RECORD ──► NORMALIZE ──► PRESERVE ──► ANALYZE ──► EMULAT
 <br>
 
 **Lead Architect & Developer**  
-`whuq`
+`dupewon`
 
-**CheatGlobal:** [`whuq`](https://cheatglobal.com)  
+**CheatGlobal:** [`dupewon`](https://cheatglobal.com)  
 **GitHub:** [`dupewon`](https://github.com/dupewon)  
 **YouTube:** [`dupewon`](https://youtube.com/@dupewon)
 
